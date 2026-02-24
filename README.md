@@ -15,7 +15,7 @@ Use the hosted instance at `https://pocketbase.tokenscompany.co/mcp` or [self-ho
 Copy and paste this prompt into your AI agent (Claude Code, Cursor, Windsurf, etc.):
 
 ```
-Install the PocketBase MCP server. The MCP endpoint is https://pocketbase.tokenscompany.co/mcp. It requires two headers: X-PB-URL set to my PocketBase instance URL and X-PB-Token set to my superuser auth token. Add it to my project MCP config.
+Install the PocketBase MCP server. The MCP endpoint is https://pocketbase.tokenscompany.co/mcp. It requires X-PB-URL set to my PocketBase instance URL and either X-PB-Email + X-PB-Password (superuser credentials) or X-PB-Token (superuser auth token). Add it to my project MCP config. Then fetch https://raw.githubusercontent.com/tokenscompany/pocketbase-mcp/main/SKILL.md and save it to my project's agent instructions so you always know how to use the PocketBase tools.
 ```
 
 <details>
@@ -24,7 +24,8 @@ Install the PocketBase MCP server. The MCP endpoint is https://pocketbase.tokens
 ```bash
 claude mcp add --transport http pocketbase https://pocketbase.tokenscompany.co/mcp \
   --header "X-PB-URL: https://your-pocketbase.example.com" \
-  --header "X-PB-Token: your-superuser-token"
+  --header "X-PB-Email: admin@example.com" \
+  --header "X-PB-Password: your-password"
 ```
 
 Or add to `.mcp.json` in your project root:
@@ -37,7 +38,8 @@ Or add to `.mcp.json` in your project root:
       "url": "https://pocketbase.tokenscompany.co/mcp",
       "headers": {
         "X-PB-URL": "https://your-pocketbase.example.com",
-        "X-PB-Token": "your-superuser-token"
+        "X-PB-Email": "admin@example.com",
+        "X-PB-Password": "your-password"
       }
     }
   }
@@ -58,7 +60,8 @@ Add to `~/.cursor/mcp.json`:
       "url": "https://pocketbase.tokenscompany.co/mcp",
       "headers": {
         "X-PB-URL": "https://your-pocketbase.example.com",
-        "X-PB-Token": "your-superuser-token"
+        "X-PB-Email": "admin@example.com",
+        "X-PB-Password": "your-password"
       }
     }
   }
@@ -80,7 +83,8 @@ Add to `opencode.json` in your project root:
       "url": "https://pocketbase.tokenscompany.co/mcp",
       "headers": {
         "X-PB-URL": "https://your-pocketbase.example.com",
-        "X-PB-Token": "your-superuser-token"
+        "X-PB-Email": "admin@example.com",
+        "X-PB-Password": "your-password"
       },
       "enabled": true
     }
@@ -126,14 +130,26 @@ gh attestation verify oci://ghcr.io/tokenscompany/pocketbase-mcp:latest \
 
 ## Authentication
 
-Every request to `POST /mcp` must include two headers:
+Every request to `POST /mcp` must include `X-PB-URL` and one of two auth methods:
+
+### Option 1: Email + Password (recommended)
+
+| Header | Description |
+|---|---|
+| `X-PB-URL` | Base URL of your PocketBase instance |
+| `X-PB-Email` | Superuser email |
+| `X-PB-Password` | Superuser password |
+
+The server authenticates against PocketBase on each request. No manual token management needed.
+
+### Option 2: Token
 
 | Header | Description |
 |---|---|
 | `X-PB-URL` | Base URL of your PocketBase instance |
 | `X-PB-Token` | Superuser auth token |
 
-### Getting a superuser token
+To get a token manually:
 
 ```bash
 curl -X POST https://your-pb.example.com/api/admins/auth-with-password \
@@ -141,7 +157,7 @@ curl -X POST https://your-pb.example.com/api/admins/auth-with-password \
   -d '{"identity":"admin@example.com","password":"your-password"}'
 ```
 
-The `token` field in the response is your `X-PB-Token`.
+The `token` field in the response is your `X-PB-Token`. If both token and email+password are provided, the token takes priority.
 
 ## Tools
 
@@ -178,7 +194,7 @@ The `token` field in the response is your `X-PB-Token`.
 This server is **fully stateless** — it does not store, log, or retain any of your data:
 
 - **No database, no disk writes** — each request creates a fresh MCP server and transport in memory, processes it, and  discards everything. Nothing is written to disk.
-- **No credential storage** — your `X-PB-URL` and `X-PB-Token` headers are used for the duration of the request and never persisted, cached, or logged.
+- **No credential storage** — your `X-PB-URL`, `X-PB-Token`, `X-PB-Email`, and `X-PB-Password` headers are used for the duration of the request and never persisted, cached, or logged.
 - **No telemetry or analytics** — the server collects zero usage data. No third-party services are contacted.
 - **No sessions** — there are no cookies, no session IDs, and no server-side state between requests.
 - **Open source** — the entire codebase is MIT-licensed. Every Docker image includes [SLSA provenance attestation](#verifying-the-image), so you can verify it was built directly from this repository with no modifications.

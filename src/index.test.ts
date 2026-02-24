@@ -12,7 +12,7 @@ beforeAll(async () => {
     "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js"
   );
   const { registerTools } = await import("./mcp-server.ts");
-  const { createPBClient } = await import("./pb-client.ts");
+  const { createPBClient, createPBClientWithCredentials } = await import("./pb-client.ts");
   const { validatePBUrl } = await import("./validate-url.ts");
   const { checkRateLimit } = await import("./rate-limit.ts");
 
@@ -21,7 +21,7 @@ beforeAll(async () => {
   const COMMON_HEADERS: Record<string, string> = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers":
-      "Content-Type, Accept, X-PB-URL, X-PB-Token",
+      "Content-Type, Accept, X-PB-URL, X-PB-Token, X-PB-Email, X-PB-Password",
     "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
     "X-Build-Commit": process.env.GIT_SHA || "dev",
   };
@@ -97,15 +97,17 @@ beforeAll(async () => {
 
         const pbUrl = req.headers.get("x-pb-url");
         const pbToken = req.headers.get("x-pb-token");
+        const pbEmail = req.headers.get("x-pb-email");
+        const pbPassword = req.headers.get("x-pb-password");
 
-        if (!pbUrl || !pbToken) {
+        if (!pbUrl || (!pbToken && (!pbEmail || !pbPassword))) {
           return jsonResponse(
             {
               jsonrpc: "2.0",
               error: {
                 code: -32001,
                 message:
-                  "Missing X-PB-URL and/or X-PB-Token headers. Both are required.",
+                  "Missing auth headers. Provide X-PB-URL with either X-PB-Token or X-PB-Email + X-PB-Password.",
               },
               id: null,
             },
@@ -128,7 +130,9 @@ beforeAll(async () => {
         }
 
         try {
-          const pb = createPBClient(pbUrl, pbToken);
+          const pb = pbToken
+            ? createPBClient(pbUrl, pbToken)
+            : await createPBClientWithCredentials(pbUrl, pbEmail!, pbPassword!);
           const mcp = new McpServer({
             name: "pocketbase-mcp",
             version: "1.0.0",
@@ -211,6 +215,33 @@ test("POST /mcp without auth headers returns 401", async () => {
   expect(res.status).toBe(401);
   const body = await res.json();
   expect(body.error.code).toBe(-32001);
+  expect(body.error.message).toContain("X-PB-Email");
+});
+
+test("POST /mcp with only email (no password) returns 401", async () => {
+  const res = await fetch(`${baseUrl}/mcp`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-PB-URL": "http://example.com:8090",
+      "X-PB-Email": "admin@example.com",
+    },
+    body: JSON.stringify(mcpRequest("initialize", 1)),
+  });
+  expect(res.status).toBe(401);
+});
+
+test("POST /mcp with only password (no email) returns 401", async () => {
+  const res = await fetch(`${baseUrl}/mcp`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-PB-URL": "http://example.com:8090",
+      "X-PB-Password": "testpassword",
+    },
+    body: JSON.stringify(mcpRequest("initialize", 1)),
+  });
+  expect(res.status).toBe(401);
 });
 
 // ─── Method not allowed ───

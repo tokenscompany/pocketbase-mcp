@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { registerTools } from "./mcp-server.ts";
-import { createPBClient } from "./pb-client.ts";
+import { createPBClient, createPBClientWithCredentials } from "./pb-client.ts";
 import { validatePBUrl } from "./validate-url.ts";
 import { checkRateLimit } from "./rate-limit.ts";
 
@@ -11,7 +11,7 @@ const GIT_SHA = process.env.GIT_SHA || "dev";
 
 const COMMON_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type, Accept, X-PB-URL, X-PB-Token",
+  "Access-Control-Allow-Headers": "Content-Type, Accept, X-PB-URL, X-PB-Token, X-PB-Email, X-PB-Password",
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
   "X-Build-Commit": GIT_SHA,
 };
@@ -82,15 +82,17 @@ const server = Bun.serve({
 
       const pbUrl = req.headers.get("x-pb-url");
       const pbToken = req.headers.get("x-pb-token");
+      const pbEmail = req.headers.get("x-pb-email");
+      const pbPassword = req.headers.get("x-pb-password");
 
-      if (!pbUrl || !pbToken) {
+      if (!pbUrl || (!pbToken && (!pbEmail || !pbPassword))) {
         return jsonResponse(
           {
             jsonrpc: "2.0",
             error: {
               code: -32001,
               message:
-                "Missing X-PB-URL and/or X-PB-Token headers. Both are required.",
+                "Missing auth headers. Provide X-PB-URL with either X-PB-Token or X-PB-Email + X-PB-Password.",
             },
             id: null,
           },
@@ -114,7 +116,9 @@ const server = Bun.serve({
       }
 
       try {
-        const pb = createPBClient(pbUrl, pbToken);
+        const pb = pbToken
+          ? createPBClient(pbUrl, pbToken)
+          : await createPBClientWithCredentials(pbUrl, pbEmail!, pbPassword!);
         const mcp = new McpServer({
           name: "pocketbase-mcp",
           version: "1.0.0",
