@@ -14,9 +14,12 @@ Use the hosted instance at `https://pocketbase.tokenscompany.co/mcp` or [self-ho
 
 Copy and paste this prompt into your AI agent (Claude Code, Cursor, Windsurf, etc.):
 
-> Install the PocketBase MCP server. The MCP endpoint is `https://pocketbase.tokenscompany.co/mcp`. It requires two headers: `X-PB-URL` set to my PocketBase instance URL and `X-PB-Token` set to my superuser auth token. Add it to my project MCP config.
+```
+Install the PocketBase MCP server. The MCP endpoint is https://pocketbase.tokenscompany.co/mcp. It requires two headers: X-PB-URL set to my PocketBase instance URL and X-PB-Token set to my superuser auth token. Add it to my project MCP config.
+```
 
-### Claude Code
+<details>
+<summary>Claude Code</summary>
 
 ```bash
 claude mcp add --transport http pocketbase https://pocketbase.tokenscompany.co/mcp \
@@ -41,7 +44,10 @@ Or add to `.mcp.json` in your project root:
 }
 ```
 
-### Cursor
+</details>
+
+<details>
+<summary>Cursor</summary>
 
 Add to `~/.cursor/mcp.json`:
 
@@ -59,7 +65,10 @@ Add to `~/.cursor/mcp.json`:
 }
 ```
 
-### OpenCode
+</details>
+
+<details>
+<summary>OpenCode</summary>
 
 Add to `opencode.json` in your project root:
 
@@ -78,6 +87,8 @@ Add to `opencode.json` in your project root:
   }
 }
 ```
+
+</details>
 
 ## Self-hosting
 
