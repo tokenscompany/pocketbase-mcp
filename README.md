@@ -8,14 +8,60 @@ Remote MCP server that connects any MCP client to a PocketBase instance over sta
 
 ## Quick start
 
-Add to your MCP client config:
+Use the hosted instance at `https://pocketbase.tokenscompany.co/mcp` or [self-host your own](#self-hosting).
+
+### Claude Code
+
+```bash
+claude mcp add --transport http pocketbase https://pocketbase.tokenscompany.co/mcp \
+  --header "X-PB-URL: https://your-pocketbase.example.com" \
+  --header "X-PB-Token: your-superuser-token"
+```
+
+Or add to `.mcp.json` in your project root:
 
 ```json
 {
   "mcpServers": {
     "pocketbase": {
-      "type": "streamable-http",
-      "url": "https://your-host/mcp",
+      "type": "http",
+      "url": "https://pocketbase.tokenscompany.co/mcp",
+      "headers": {
+        "X-PB-URL": "https://your-pocketbase.example.com",
+        "X-PB-Token": "your-superuser-token"
+      }
+    }
+  }
+}
+```
+
+### Cursor
+
+Add to `~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "pocketbase": {
+      "url": "https://pocketbase.tokenscompany.co/mcp",
+      "headers": {
+        "X-PB-URL": "https://your-pocketbase.example.com",
+        "X-PB-Token": "your-superuser-token"
+      }
+    }
+  }
+}
+```
+
+### Windsurf
+
+Add to `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "pocketbase": {
+      "serverUrl": "https://pocketbase.tokenscompany.co/mcp",
       "headers": {
         "X-PB-URL": "https://your-pocketbase.example.com",
         "X-PB-Token": "your-superuser-token"
