@@ -15,7 +15,7 @@ Use the hosted instance at `https://pocketbase.tokenscompany.co/mcp` or [self-ho
 Copy and paste this prompt into your AI agent (Claude Code, Cursor, Windsurf, etc.):
 
 ```
-Install the PocketBase MCP server. The MCP endpoint is https://pocketbase.tokenscompany.co/mcp. It requires X-PB-URL set to my PocketBase instance URL and either X-PB-Email + X-PB-Password (superuser credentials) or X-PB-Token (superuser auth token). Add it to my project MCP config. Then fetch https://raw.githubusercontent.com/tokenscompany/pocketbase-mcp/main/SKILL.md and save it to my project's agent instructions so you always know how to use the PocketBase tools.
+Install the PocketBase MCP server. The MCP endpoint is https://pocketbase.tokenscompany.co/mcp and the transport type is http (NOT sse). It requires X-PB-URL set to my PocketBase instance URL and either X-PB-Email + X-PB-Password (superuser credentials) or X-PB-Token (superuser auth token). Add it to my project MCP config with type "http". Then fetch https://raw.githubusercontent.com/tokenscompany/pocketbase-mcp/main/SKILL.md and save it to my project's agent instructions so you always know how to use the PocketBase tools.
 ```
 
 <details>
@@ -37,14 +37,16 @@ Or add to `.mcp.json` in your project root:
       "type": "http",
       "url": "https://pocketbase.tokenscompany.co/mcp",
       "headers": {
-        "X-PB-URL": "https://your-pocketbase.example.com",
-        "X-PB-Email": "admin@example.com",
-        "X-PB-Password": "your-password"
+        "X-PB-URL": "${PB_URL}",
+        "X-PB-Email": "${PB_EMAIL}",
+        "X-PB-Password": "${PB_PASSWORD}"
       }
     }
   }
 }
 ```
+
+Claude Code expands `${VAR}` from your environment, so set `PB_URL`, `PB_EMAIL`, and `PB_PASSWORD` in your shell or `.env`.
 
 </details>
 
@@ -221,6 +223,29 @@ When hosting a public instance, the server includes several additional measures:
 |---|---|---|
 | `POST` | `/mcp` | MCP endpoint (stateless, JSON responses) |
 | `GET` | `/health` | Health check |
+
+## Troubleshooting
+
+### "Failed to reconnect" error
+
+Your MCP client config likely uses `"type": "sse"`. This server uses **stateless streamable HTTP**, not Server-Sent Events. Change the transport type to `"http"`:
+
+```json
+{
+  "mcpServers": {
+    "pocketbase": {
+      "type": "http",
+      ...
+    }
+  }
+}
+```
+
+For Claude Code CLI, use `--transport http` when adding:
+
+```bash
+claude mcp add --transport http pocketbase https://pocketbase.tokenscompany.co/mcp ...
+```
 
 ## License
 
