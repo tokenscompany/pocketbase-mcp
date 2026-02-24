@@ -1,8 +1,8 @@
 # pocketbase-mcp
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/kacperkwapisz/pocketbase-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/kacperkwapisz/pocketbase-mcp/actions/workflows/ci.yml)
-[![Docker](https://github.com/kacperkwapisz/pocketbase-mcp/actions/workflows/docker.yml/badge.svg)](https://github.com/kacperkwapisz/pocketbase-mcp/actions/workflows/docker.yml)
+[![CI](https://github.com/tokenscompany/pocketbase-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/tokenscompany/pocketbase-mcp/actions/workflows/ci.yml)
+[![Docker](https://github.com/tokenscompany/pocketbase-mcp/actions/workflows/docker.yml/badge.svg)](https://github.com/tokenscompany/pocketbase-mcp/actions/workflows/docker.yml)
 
 Remote MCP server that connects any MCP client to a PocketBase instance over stateless HTTP.
 
@@ -87,8 +87,8 @@ The server listens on `PORT` (default `3000`).
 ### Docker (GHCR)
 
 ```bash
-docker pull ghcr.io/kacperkwapisz/pocketbase-mcp:latest
-docker run -p 3000:3000 ghcr.io/kacperkwapisz/pocketbase-mcp:latest
+docker pull ghcr.io/tokenscompany/pocketbase-mcp:latest
+docker run -p 3000:3000 ghcr.io/tokenscompany/pocketbase-mcp:latest
 ```
 
 Or build locally:
@@ -103,8 +103,8 @@ docker run -p 3000:3000 pocketbase-mcp
 Every image published to GHCR includes SLSA provenance attestation. You can verify that an image was built from this repository:
 
 ```bash
-gh attestation verify oci://ghcr.io/kacperkwapisz/pocketbase-mcp:latest \
-  --owner kacperkwapisz
+gh attestation verify oci://ghcr.io/tokenscompany/pocketbase-mcp:latest \
+  --owner tokenscompany
 ```
 
 ## Authentication
