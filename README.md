@@ -53,19 +53,21 @@ Add to `~/.cursor/mcp.json`:
 }
 ```
 
-### Windsurf
+### OpenCode
 
-Add to `~/.codeium/windsurf/mcp_config.json`:
+Add to `opencode.json` in your project root:
 
 ```json
 {
-  "mcpServers": {
+  "mcp": {
     "pocketbase": {
-      "serverUrl": "https://pocketbase.tokenscompany.co/mcp",
+      "type": "remote",
+      "url": "https://pocketbase.tokenscompany.co/mcp",
       "headers": {
         "X-PB-URL": "https://your-pocketbase.example.com",
         "X-PB-Token": "your-superuser-token"
-      }
+      },
+      "enabled": true
     }
   }
 }
