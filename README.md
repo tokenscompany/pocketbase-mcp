@@ -10,6 +10,12 @@ Remote MCP server that connects any MCP client to a PocketBase instance over sta
 
 Use the hosted instance at `https://pocketbase.tokenscompany.co/mcp` or [self-host your own](#self-hosting).
 
+### Install with AI agent
+
+Copy and paste this prompt into your AI agent (Claude Code, Cursor, Windsurf, etc.):
+
+> Install the PocketBase MCP server. The MCP endpoint is `https://pocketbase.tokenscompany.co/mcp`. It requires two headers: `X-PB-URL` set to my PocketBase instance URL and `X-PB-Token` set to my superuser auth token. Add it to my project MCP config.
+
 ### Claude Code
 
 ```bash
