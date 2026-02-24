@@ -1,37 +1,37 @@
 {
-  "name": "pocketbase-mcp",
-  "version": "1.0.0",
-  "description": "Remote MCP server that connects any MCP client to a PocketBase instance",
-  "module": "src/index.ts",
-  "type": "module",
-  "private": true,
-  "license": "MIT",
-  "author": "Kacper Hemperek",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/kacperhemperek/pocketbase-mcp.git"
-  },
-  "keywords": [
-    "mcp",
-    "pocketbase",
-    "model-context-protocol",
-    "ai",
-    "llm"
-  ],
-  "scripts": {
-    "start": "bun run src/index.ts",
-    "dev": "bun --watch run src/index.ts",
-    "test": "bun test"
-  },
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.27.0",
-    "pocketbase": "^0.26.8",
-    "zod": "^4.3.6"
-  }
+	"name": "pocketbase-mcp",
+	"version": "1.0.0",
+	"description": "Remote MCP server that connects any MCP client to a PocketBase instance",
+	"module": "src/index.ts",
+	"type": "module",
+	"private": true,
+	"license": "MIT",
+	"author": "Kacper Hemperek",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/kacperkwapisz/pocketbase-mcp.git"
+	},
+	"keywords": [
+		"mcp",
+		"pocketbase",
+		"model-context-protocol",
+		"ai",
+		"llm"
+	],
+	"scripts": {
+		"start": "bun run src/index.ts",
+		"dev": "bun --watch run src/index.ts",
+		"test": "bun test"
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.27.0",
+		"pocketbase": "^0.26.8",
+		"zod": "^4.3.6"
+	}
 }

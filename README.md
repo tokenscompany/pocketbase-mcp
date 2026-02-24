@@ -1,7 +1,8 @@
 # pocketbase-mcp
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/kacperhemperek/pocketbase-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/kacperhemperek/pocketbase-mcp/actions/workflows/ci.yml)
+[![CI](https://github.com/kacperkwapisz/pocketbase-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/kacperkwapisz/pocketbase-mcp/actions/workflows/ci.yml)
+[![Docker](https://github.com/kacperkwapisz/pocketbase-mcp/actions/workflows/docker.yml/badge.svg)](https://github.com/kacperkwapisz/pocketbase-mcp/actions/workflows/docker.yml)
 
 Remote MCP server that connects any MCP client to a PocketBase instance over stateless HTTP.
 
@@ -35,11 +36,27 @@ bun run src/index.ts
 
 The server listens on `PORT` (default `3000`).
 
-### Docker
+### Docker (GHCR)
+
+```bash
+docker pull ghcr.io/kacperkwapisz/pocketbase-mcp:latest
+docker run -p 3000:3000 ghcr.io/kacperkwapisz/pocketbase-mcp:latest
+```
+
+Or build locally:
 
 ```bash
 docker build -t pocketbase-mcp .
 docker run -p 3000:3000 pocketbase-mcp
+```
+
+### Verifying the image
+
+Every image published to GHCR includes SLSA provenance attestation. You can verify that an image was built from this repository:
+
+```bash
+gh attestation verify oci://ghcr.io/kacperkwapisz/pocketbase-mcp:latest \
+  --owner kacperkwapisz
 ```
 
 ## Authentication
@@ -90,6 +107,32 @@ The `token` field in the response is your `X-PB-Token`.
 | Resource | URI | Description |
 |---|---|---|
 | `schema` | `pocketbase://schema` | All collection schemas as JSON |
+
+## Security & Privacy
+
+This server is **fully stateless** — it does not store, log, or retain any of your data:
+
+- **No database, no disk writes** — each request creates a fresh MCP server and transport in memory, processes it, and  discards everything. Nothing is written to disk.
+- **No credential storage** — your `X-PB-URL` and `X-PB-Token` headers are used for the duration of the request and never persisted, cached, or logged.
+- **No telemetry or analytics** — the server collects zero usage data. No third-party services are contacted.
+- **No sessions** — there are no cookies, no session IDs, and no server-side state between requests.
+- **Open source** — the entire codebase is MIT-licensed. Every Docker image includes [SLSA provenance attestation](#verifying-the-image), so you can verify it was built directly from this repository with no modifications.
+- **Self-host it yourself** — for maximum control, run your own instance. The server is a single container with no external dependencies beyond your PocketBase instance.
+
+### Hardening
+
+When hosting a public instance, the server includes several additional measures:
+
+- **SSRF protection** — `X-PB-URL` is validated: only `http`/`https` schemes are allowed, and hostnames that resolve to private/reserved IP ranges (`127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `::1`, `fc00::/7`, `fe80::/10`) are rejected.
+- **Rate limiting** — in-memory token-bucket per IP. Configurable via environment variables:
+
+  | Variable | Default | Description |
+  |---|---|---|
+  | `RATE_LIMIT_RPM` | `60` | Requests per minute per IP |
+  | `RATE_LIMIT_BURST` | `10` | Max burst size |
+
+- **CORS** — `Access-Control-Allow-Origin: *` with preflight support on `/mcp`.
+- **Body size limit** — requests larger than 1 MB are rejected with `413`.
 
 ## Endpoints
 

@@ -1,4 +1,4 @@
-import { test, expect, beforeAll, afterAll } from "bun:test";
+import { test, expect, beforeAll, afterAll, beforeEach } from "bun:test";
 import type { Server } from "bun";
 
 let server: Server;
@@ -13,19 +13,61 @@ beforeAll(async () => {
   );
   const { registerTools } = await import("./mcp-server.ts");
   const { createPBClient } = await import("./pb-client.ts");
+  const { validatePBUrl } = await import("./validate-url.ts");
+  const { checkRateLimit } = await import("./rate-limit.ts");
+
+  const MAX_BODY_SIZE = 1_048_576;
+
+  const COMMON_HEADERS: Record<string, string> = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Accept, X-PB-URL, X-PB-Token",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "X-Build-Commit": process.env.GIT_SHA || "dev",
+  };
+
+  function withHeaders(response: Response): Response {
+    for (const [key, value] of Object.entries(COMMON_HEADERS)) {
+      response.headers.set(key, value);
+    }
+    return response;
+  }
+
+  function jsonResponse(body: unknown, status: number): Response {
+    return withHeaders(Response.json(body, { status }));
+  }
 
   server = Bun.serve({
     port: 0,
     async fetch(req) {
       const url = new URL(req.url);
 
+      if (req.method === "OPTIONS" && url.pathname === "/mcp") {
+        return withHeaders(new Response(null, { status: 204 }));
+      }
+
       if (url.pathname === "/health") {
-        return Response.json({ status: "ok" });
+        return jsonResponse({ status: "ok", version: "1.0.0", commit: process.env.GIT_SHA || "dev" }, 200);
       }
 
       if (url.pathname === "/mcp") {
+        const ip = server.requestIP(req)?.address ?? "unknown";
+        if (!checkRateLimit(ip)) {
+          return jsonResponse(
+            {
+              jsonrpc: "2.0",
+              error: {
+                code: -32000,
+                message: "Rate limit exceeded. Try again later.",
+              },
+              id: null,
+            },
+            429,
+          );
+        }
+
         if (req.method !== "POST") {
-          return Response.json(
+          return jsonResponse(
             {
               jsonrpc: "2.0",
               error: {
@@ -34,7 +76,22 @@ beforeAll(async () => {
               },
               id: null,
             },
-            { status: 405 },
+            405,
+          );
+        }
+
+        const contentLength = req.headers.get("content-length");
+        if (contentLength && Number(contentLength) > MAX_BODY_SIZE) {
+          return jsonResponse(
+            {
+              jsonrpc: "2.0",
+              error: {
+                code: -32000,
+                message: "Request body too large. Max 1MB.",
+              },
+              id: null,
+            },
+            413,
           );
         }
 
@@ -42,7 +99,7 @@ beforeAll(async () => {
         const pbToken = req.headers.get("x-pb-token");
 
         if (!pbUrl || !pbToken) {
-          return Response.json(
+          return jsonResponse(
             {
               jsonrpc: "2.0",
               error: {
@@ -52,7 +109,21 @@ beforeAll(async () => {
               },
               id: null,
             },
-            { status: 401 },
+            401,
+          );
+        }
+
+        try {
+          await validatePBUrl(pbUrl);
+        } catch (e) {
+          const message = e instanceof Error ? e.message : "Invalid PB URL";
+          return jsonResponse(
+            {
+              jsonrpc: "2.0",
+              error: { code: -32001, message },
+              id: null,
+            },
+            403,
           );
         }
 
@@ -70,21 +141,22 @@ beforeAll(async () => {
           });
           await mcp.connect(transport);
 
-          return transport.handleRequest(req);
+          const response = await transport.handleRequest(req);
+          return withHeaders(response);
         } catch (e) {
           const message = e instanceof Error ? e.message : "Internal error";
-          return Response.json(
+          return jsonResponse(
             {
               jsonrpc: "2.0",
               error: { code: -32603, message },
               id: null,
             },
-            { status: 500 },
+            500,
           );
         }
       }
 
-      return Response.json({ error: "Not found" }, { status: 404 });
+      return jsonResponse({ error: "Not found" }, 404);
     },
   });
 
@@ -95,8 +167,13 @@ afterAll(() => {
   server?.stop(true);
 });
 
+beforeEach(async () => {
+  const { resetRateLimits } = await import("./rate-limit.ts");
+  resetRateLimits();
+});
+
 const AUTH_HEADERS = {
-  "X-PB-URL": "http://localhost:8090",
+  "X-PB-URL": "http://example.com:8090",
   "X-PB-Token": "test-token",
   "Content-Type": "application/json",
   Accept: "application/json, text/event-stream",
@@ -113,10 +190,14 @@ function mcpRequest(method: string, id: number, params?: unknown) {
 
 // ─── Health ───
 
-test("GET /health returns 200 with status ok", async () => {
+test("GET /health returns 200 with status, version, and commit", async () => {
   const res = await fetch(`${baseUrl}/health`);
   expect(res.status).toBe(200);
-  expect(await res.json()).toEqual({ status: "ok" });
+  const body = await res.json();
+  expect(body.status).toBe("ok");
+  expect(body.version).toBe("1.0.0");
+  expect(body.commit).toBe("dev");
+  expect(res.headers.get("x-build-commit")).toBe("dev");
 });
 
 // ─── Auth ───
@@ -197,4 +278,119 @@ test("POST /mcp with invalid JSON returns 400", async () => {
     body: "not valid json{{{",
   });
   expect(res.status).toBe(400);
+});
+
+// ─── SSRF protection ───
+
+test("SSRF: X-PB-URL with http://127.0.0.1 returns 403", async () => {
+  const res = await fetch(`${baseUrl}/mcp`, {
+    method: "POST",
+    headers: {
+      ...AUTH_HEADERS,
+      "X-PB-URL": "http://127.0.0.1:8090",
+    },
+    body: JSON.stringify(mcpRequest("initialize", 1)),
+  });
+  expect(res.status).toBe(403);
+});
+
+test("SSRF: X-PB-URL with http://169.254.169.254 returns 403", async () => {
+  const res = await fetch(`${baseUrl}/mcp`, {
+    method: "POST",
+    headers: {
+      ...AUTH_HEADERS,
+      "X-PB-URL": "http://169.254.169.254",
+    },
+    body: JSON.stringify(mcpRequest("initialize", 1)),
+  });
+  expect(res.status).toBe(403);
+});
+
+test("SSRF: X-PB-URL with ftp://example.com returns 403", async () => {
+  const res = await fetch(`${baseUrl}/mcp`, {
+    method: "POST",
+    headers: {
+      ...AUTH_HEADERS,
+      "X-PB-URL": "ftp://example.com",
+    },
+    body: JSON.stringify(mcpRequest("initialize", 1)),
+  });
+  expect(res.status).toBe(403);
+});
+
+test("SSRF: X-PB-URL with http://10.0.0.1 returns 403", async () => {
+  const res = await fetch(`${baseUrl}/mcp`, {
+    method: "POST",
+    headers: {
+      ...AUTH_HEADERS,
+      "X-PB-URL": "http://10.0.0.1:8090",
+    },
+    body: JSON.stringify(mcpRequest("initialize", 1)),
+  });
+  expect(res.status).toBe(403);
+});
+
+test("SSRF: X-PB-URL with http://192.168.1.1 returns 403", async () => {
+  const res = await fetch(`${baseUrl}/mcp`, {
+    method: "POST",
+    headers: {
+      ...AUTH_HEADERS,
+      "X-PB-URL": "http://192.168.1.1:8090",
+    },
+    body: JSON.stringify(mcpRequest("initialize", 1)),
+  });
+  expect(res.status).toBe(403);
+});
+
+// ─── Rate limiting ───
+
+test("Rate limit: returns 429 after burst exceeded", async () => {
+  const { resetRateLimits } = await import("./rate-limit.ts");
+  resetRateLimits();
+
+  // Default burst is 10, send 11 requests
+  const results: number[] = [];
+  for (let i = 0; i < 12; i++) {
+    const res = await fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mcpRequest("initialize", 1)),
+    });
+    results.push(res.status);
+    // consume body to free resources
+    await res.text();
+  }
+  expect(results).toContain(429);
+});
+
+// ─── CORS ───
+
+test("OPTIONS /mcp returns 204 with CORS headers", async () => {
+  const res = await fetch(`${baseUrl}/mcp`, { method: "OPTIONS" });
+  expect(res.status).toBe(204);
+  expect(res.headers.get("access-control-allow-origin")).toBe("*");
+  expect(res.headers.get("access-control-allow-methods")).toContain("POST");
+  expect(res.headers.get("access-control-allow-headers")).toContain(
+    "X-PB-URL",
+  );
+});
+
+test("Responses include CORS headers", async () => {
+  const res = await fetch(`${baseUrl}/health`);
+  expect(res.headers.get("access-control-allow-origin")).toBe("*");
+});
+
+// ─── Body size limit ───
+
+test("Oversized POST returns 413", async () => {
+  const largeBody = "x".repeat(2_000_000);
+  const res = await fetch(`${baseUrl}/mcp`, {
+    method: "POST",
+    headers: {
+      ...AUTH_HEADERS,
+      "Content-Length": String(largeBody.length),
+    },
+    body: largeBody,
+  });
+  expect(res.status).toBe(413);
 });

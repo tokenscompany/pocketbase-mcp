@@ -10,6 +10,8 @@ COPY --from=install /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src
 
+ARG GIT_SHA="dev"
+ENV GIT_SHA=$GIT_SHA
 ENV PORT=3000
 EXPOSE 3000
 
