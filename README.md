@@ -153,6 +153,14 @@ The server authenticates against PocketBase on each request. No manual token man
 
 To get a token manually:
 
+**PocketBase v0.23+**
+```bash
+curl -X POST https://your-pb.example.com/api/collections/_superusers/auth-with-password \
+  -H 'Content-Type: application/json' \
+  -d '{"identity":"admin@example.com","password":"your-password"}'
+```
+
+**PocketBase < v0.23 (legacy)**
 ```bash
 curl -X POST https://your-pb.example.com/api/admins/auth-with-password \
   -H 'Content-Type: application/json' \
@@ -225,6 +233,29 @@ When hosting a public instance, the server includes several additional measures:
 | `GET` | `/health` | Health check |
 
 ## Troubleshooting
+
+### "loadAuthToken failure" / Authentication failed
+
+This error means the MCP server could not authenticate against your PocketBase instance.
+
+**PocketBase v0.23+ (most common)**
+
+PocketBase v0.23 replaced the `/api/admins` endpoint with `/api/collections/_superusers`. The server automatically uses the correct endpoint, but verify that you are passing valid superuser credentials in `X-PB-Email` / `X-PB-Password` (or a valid `X-PB-Token`).
+
+If you see `_superusers endpoint returned 404` in server logs, your instance is running PocketBase < v0.23. The server will fall back to the legacy `/api/admins/auth-with-password` endpoint automatically, but upgrading is recommended.
+
+**Check your credentials**
+
+```bash
+# PocketBase v0.23+
+curl -X POST https://your-pb.example.com/api/collections/_superusers/auth-with-password \
+  -H 'Content-Type: application/json' \
+  -d '{"identity":"admin@example.com","password":"your-password"}'
+```
+
+A successful response contains a `token` field. A `400` or `401` response means wrong credentials.
+
+---
 
 ### "Failed to reconnect" error
 

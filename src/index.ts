@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { registerTools } from "./mcp-server.ts";
-import { createPBClient, createPBClientWithCredentials } from "./pb-client.ts";
+import { createPBClient, createPBClientWithCredentials, AuthError } from "./pb-client.ts";
 import { validatePBUrl } from "./validate-url.ts";
 import { checkRateLimit } from "./rate-limit.ts";
 
@@ -193,7 +193,19 @@ const server = Bun.serve({
         const response = await transport.handleRequest(req);
         return withHeaders(response);
       } catch (e) {
+        if (e instanceof AuthError) {
+          console.error(`[pocketbase-mcp] Auth error for ${pbUrl}: ${e.message}`);
+          return jsonResponse(
+            {
+              jsonrpc: "2.0",
+              error: { code: -32001, message: e.message },
+              id: null,
+            },
+            401,
+          );
+        }
         const message = e instanceof Error ? e.message : "Internal error";
+        console.error(`[pocketbase-mcp] Internal error: ${message}`);
         return jsonResponse(
           {
             jsonrpc: "2.0",
